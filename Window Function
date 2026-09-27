@@ -1,1 +1,54 @@
+lab 1
+WITH ranked_films AS (
+  SELECT c.name AS category, f.title, f.length,
+    DENSE_RANK() OVER (PARTITION BY c.name ORDER BY f.length DESC) AS rnk
+  FROM film f
+  JOIN film_category fc ON f.film_id = fc.film_id
+  JOIN category c ON fc.category_id = c.category_id
+)
+SELECT * FROM ranked_films WHERE rnk <= 3;
 
+
+lab 2
+WITH monthly AS (
+  SELECT DATE_TRUNC('month', payment_date) AS month, SUM(amount) AS revenue
+  FROM payment
+  GROUP BY 1
+)
+SELECT month, revenue,
+  LAG(revenue) OVER (ORDER BY month) AS prev_revenue,
+  ROUND((revenue - LAG(revenue) OVER (ORDER BY month)) 
+        / LAG(revenue) OVER (ORDER BY month) * 100, 2) AS growth_pct
+FROM monthly
+ORDER BY month;
+
+
+lab 3
+SELECT customer_id, payment_date, amount,
+  SUM(amount) OVER (
+    PARTITION BY customer_id
+    ORDER BY payment_date
+  ) AS running_clv
+FROM payment
+ORDER BY customer_id, payment_date;
+
+
+lab 4 
+
+
+WITH customer_spend AS (
+  SELECT cu.customer_id, cu.first_name, cu.last_name, co.country,
+    SUM(p.amount) AS total_spend
+  FROM customer cu
+  JOIN address a ON cu.address_id = a.address_id
+  JOIN city ci ON a.city_id = ci.city_id
+  JOIN country co ON ci.country_id = co.country_id
+  JOIN payment p ON cu.customer_id = p.customer_id
+  GROUP BY cu.customer_id, cu.first_name, cu.last_name, co.country
+),
+ranked AS (
+  SELECT *, RANK() OVER (PARTITION BY country ORDER BY total_spend DESC) AS rnk
+  FROM customer_spend
+)
+SELECT * FROM ranked WHERE rnk = 1
+ORDER BY country;
